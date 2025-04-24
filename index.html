@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChronoClash: The Arena of Echoes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #1a0b2e 0%, #2e1b4e 100%);
+      color: #e6d5b8;
+      font-family: 'Arial', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      position: relative;
+    }
+    #particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .neon-glow {
+      box-shadow: 0 0 10px #dd9d22, 0 0 20px #dd9d22, 0 0 30px #dd9d22;
+    }
+    .neon-text {
+      text-shadow: 0 0 5px #dd9d22, 0 0 10px #dd9d22;
+    }
+    .card-section {
+      background: rgba(30, 20, 50, 0.8);
+      border: 1px solid #dd9d22;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .response {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      border-radius: 5px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 50;
+    }
+    .response.show {
+      opacity: 1;
+    }
+    .success {
+      background: #2e7d32;
+      color: #ffffff;
+    }
+    .error {
+      background: #d32f2f;
+      color: #ffffff;
+    }
+    .leaderboard-error {
+      color: #d32f2f;
+      text-align: center;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); opacity: 0.5; }
+      50% { transform: translateY(-20px); opacity: 0.2; }
+    }
+  </style>
+</head>
+<body>
+  <div id="particles"></div>
+  <div class="container mx-auto px-4 py-8 max-w-7xl relative z-10">
+    <h1 class="text-4xl md:text-5xl font-bold text-center mb-8 neon-text">ChronoClash: The Arena of Echoes</h1>
+
+    <!-- Connect Wallet Section -->
+    <div id="connect-section" class="flex justify-center items-center min-h-[50vh]">
+      <button id="connect-wallet" class="bg-[#dd9d22] text-[#1a0b2e] font-bold py-3 px-6 rounded-lg neon-glow hover:bg-[#e6d5b8] transition duration-300">Connect Wallet</button>
+      <button id="disconnect-wallet" class="hidden bg-[#d32f2f] text-white font-bold py-3 px-6 rounded-lg neon-glow hover:bg-[#e6d5b8] transition duration-300">Disconnect Wallet</button>
+    </div>
+
+    <!-- Match Options (Hidden until wallet connected) -->
+    <div id="match-options" class="hidden">
+      <!-- Wallet Status -->
+      <div class="text-center mb-6">
+        <p id="status" class="text-lg neon-text">Not connected</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Create Match -->
+        <div class="card-section">
+          <h2 class="text-2xl font-semibold mb-4 neon-text">Create Match</h2>
+          <div class="flex flex-col space-y-4">
+            <input id="wager-input" type="number" min="1" placeholder="Enter wager tokens" class="bg-[#2e1b4e] text-[#e6d5b8] border border-[#dd9d22] rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#dd9d22]">
+            <button id="create-match" class="bg-[#dd9d22] text-[#1a0b2e] font-bold py-2 px-4 rounded-lg neon-glow hover:bg-[#e6d5b8] transition duration-300">Create Match</button>
+          </div>
+        </div>
+        <!-- Join Match -->
+        <div class="card-section">
+          <h2 class="text-2xl font-semibold mb-4 neon-text">Join Match</h2>
+          <div class="flex flex-col space-y-4">
+            <input id="room-code-input" type="text" placeholder="Enter room code or match ID" class="bg-[#2e1b4e] text-[#e6d5b8] border border-[#dd9d22] rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#dd9d22]">
+            <button id="join-match" class="bg-[#dd9d22] text-[#1a0b2e] font-bold py-2 px-4 rounded-lg neon-glow hover:bg-[#e6d5b8] transition duration-300">Join Match</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Sections (Hidden until match created/joined) -->
+    <div id="game-sections" class="hidden">
+      <!-- Match State -->
+      <div class="card-section mb-8">
+        <h2 class="text-2xl font-semibold mb-4 neon-text">Match State</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <p class="font-semibold">Match ID:</p>
+            <p id="match-id-display" class="text-[#e6d5b8]">None</p>
+          </div>
+          <div>
+            <p class="font-semibold">Room Code:</p>
+            <p id="room-code-display" class="text-[#e6d5b8]">None</p>
+          </div>
+          <div>
+            <p class="font-semibold">State:</p>
+            <p id="state-display" class="text-[#e6d5b8]">None</p>
+          </div>
+          <div>
+            <p class="font-semibold">Wager:</p>
+            <p id="wager-display" class="text-[#e6d5b8]">0</p>
+          </div>
+          <div>
+            <p class="font-semibold">Current Turn:</p>
+            <p id="turn-display" class="text-[#e6d5b8]">None</p>
+          </div>
+          <div>
+            <p class="font-semibold">Tokens:</p>
+            <p id="tokens-display" class="text-[#e6d5b8]">0</p>
+            <div class="w-full bg-[#2e1b4e] h-2 rounded-full mt-1">
+              <div id="tokens-progress" class="bg-[#dd9d22] h-2 rounded-full" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4">
+          <p class="font-semibold">Your Cards:</p>
+          <p id="your-cards-display" class="text-[#e6d5b8]">None</p>
+        </div>
+        <div class="mt-2">
+          <p class="font-semibold">Opponent Cards:</p>
+          <p id="opponent-cards-display" class="text-[#e6d5b8]">None</p>
+        </div>
+      </div>
+
+      <!-- Action Controls -->
+      <div class="card-section mb-8">
+        <h2 class="text-2xl font-semibold mb-4 neon-text">Play Your Turn</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label for="card-select" class="block font-semibold mb-1">Select Card:</label>
+            <select id="card-select" class="bg-[#2e1b4e] text-[#e6d5b8] border border-[#dd9d22] rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#dd9d22]">
+              <option value="">Choose a card</option>
+              <option value="0">Time Knight</option>
+              <option value="1">Rift Sorcerer</option>
+              <option value="2">Future Sage</option>
+              <option value="3">Past Healer</option>
+            </select>
+          </div>
+          <div>
+            <label for="move-type-select" class="block font-semibold mb-1">Move Type:</label>
+            <select id="move-type-select" class="bg-[#2e1b4e] text-[#e6d5b8] border border-[#dd9d22] rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#dd9d22]">
+              <option value="">Choose move type</option>
+              <option value="Normal">Normal</option>
+              <option value="Special">Special</option>
+              <option value="Ultimate">Ultimate</option>
+            </select>
+          </div>
+          <div>
+            <label for="target-select" class="block font-semibold mb-1">Target:</label>
+            <select id="target-select" class="bg-[#2e1b4e] text-[#e6d5b8] border border-[#dd9d22] rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#dd9d22]">
+              <option value="">Choose target</option>
+              <option value="0">Opponent Card 1</option>
+              <option value="1">Opponent Card 2</option>
+              <option value="2">Opponent Card 3</option>
+              <option value="3">Opponent Card 4</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button id="play-turn" class="bg-[#dd9d22] text-[#1a0b2e] font-bold py-2 px-4 rounded-lg neon-glow hover:bg-[#e6d5b8] transition duration-300 w-full">Play Turn</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leaderboard and Rules -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Leaderboard -->
+        <div class="card-section">
+          <h2 class="text-2xl font-semibold mb-4 neon-text">Leaderboard</h2>
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-[#dd9d22]">
+                <th class="py-2">Rank</th>
+                <th class="py-2">Address</th>
+                <th class="py-2">Wins</th>
+                <th class="py-2">Tokens</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body"></tbody>
+          </table>
+          <button id="refresh-leaderboard" class="mt-4 bg-[#dd9d22] text-[#1a0b2e] font-bold py-2 px-4 rounded-lg neon-glow hover:bg-[#e6d5b8] transition duration-300">Refresh Leaderboard</button>
+        </div>
+        <!-- Rules -->
+        <div class="card-section">
+          <h2 class="text-2xl font-semibold mb-4 neon-text">Game Rules</h2>
+          <ul class="list-disc pl-5 space-y-2 text-[#e6d5b8]">
+            <li>Each player has 4 cards: Time Knight, Rift Sorcerer, Future Sage, Past Healer.</li>
+            <li>Matches are turn-based, with each player selecting a card, move type (Normal, Special, Ultimate), and target.</li>
+            <li>Normal moves deal standard damage, Special moves have unique effects, and Ultimate moves are powerful but limited.</li>
+            <li>Cards have HP and can be played up to 3 times before being exhausted.</li>
+            <li>The match ends when one player's cards are all defeated or after a set number of turns.</li>
+            <li>Wager tokens to create or join matches; winners earn tokens based on the wager.</li>
+          </ul>
+          <button id="refresh-state" class="mt-4 bg-[#dd9d22] text-[#1a0b2e] font-bold py-2 px-4 rounded-lg neon-glow hover:bg-[#e6d5b8] transition duration-300">Refresh Match State</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Response Popup -->
+    <div id="response" class="response"></div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module">
+    import { dryrun, message, createDataItemSigner } from 'https://unpkg.com/@permaweb/aoconnect@latest/dist/browser.js';
+    window.dryrun = dryrun;
+    window.message = message;
+    window.createDataItemSigner = createDataItemSigner;
+  </script>
+  <script>
+    const particlesDiv = document.getElementById('particles');
+    for (let i = 0; i < 50; i++) {
+      const particle = document.createElement('div');
+      particle.style.position = 'absolute';
+      particle.style.background = `rgba(${Math.random() * 221}, ${Math.random() * 161}, 94, 0.5)`;
+      particle.style.width = `${Math.random() * 3 + 1}px`;
+      particle.style.height = particle.style.width;
+      particle.style.borderRadius = '50%';
+      particle.style.left = `${Math.random() * 100}%`;
+      particle.style.top = `${Math.random() * 100}%`;
+      particle.style.animation = `float ${Math.random() * 10 + 5}s infinite`;
+      particlesDiv.appendChild(particle);
+    }
+  </script>
+  <script src="main.js"></script>
+</body>
+</html>
