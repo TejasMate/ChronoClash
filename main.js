@@ -1,18 +1,15 @@
 // ChronoClash: The Arena of Echoes Wallet Integration, Game State Display, and Turn Submission
-// Adapted from Word Wars main.js
-
-const processId = "Dcz9F09Klur3xv3jzBbCuEEj4eO-OU9TImxbfQDfKyQ";
+const processId = "OUjbV7GD2mNHTFxx1iAm7E8nqLpvChMDCEHo_-zglVI";
 
 document.addEventListener("DOMContentLoaded", () => {
-  const connectSection = document.getElementById("connect-section");
-  const matchOptions = document.getElementById("match-options");
-  const gameSections = document.getElementById("game-sections");
+  const walletView = document.getElementById("wallet-view");
+  const matchOptionsView = document.getElementById("match-options-view");
+  const matchView = document.getElementById("match-view");
   const connectButton = document.getElementById("connect-wallet");
   const disconnectButton = document.getElementById("disconnect-wallet");
   const statusText = document.getElementById("status");
   const matchIdDisplay = document.getElementById("match-id-display");
   const roomCodeDisplay = document.getElementById("room-code-display");
-  const stateDisplay = document.getElementById("state-display");
   const wagerDisplay = document.getElementById("wager-display");
   const turnDisplay = document.getElementById("turn-display");
   const yourCardsDisplay = document.getElementById("your-cards-display");
@@ -36,21 +33,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function showResponse(message, className) {
     responseDiv.textContent = message;
-    responseDiv.className = className;
+    responseDiv.className = `response ${className}`;
     responseDiv.classList.add("show");
-    setTimeout(() => {
-      responseDiv.classList.remove("show");
-    }, 3000);
+    setTimeout(() => responseDiv.classList.remove("show"), 3000);
+  }
+
+  function showView(view) {
+    [walletView, matchOptionsView, matchView].forEach(v => v.classList.remove("active"));
+    view.classList.add("active");
   }
 
   async function loadLeaderboard() {
     try {
       const dryrunResponse = await window.dryrun({
         process: processId,
-        tags: [
-          { name: "Action", value: "GetLeaderboard" },
-          { name: "filetype", value: "json" }
-        ]
+        tags: [{ name: "Action", value: "GetLeaderboard" }, { name: "filetype", value: "json" }]
       });
       console.log("Dryrun GetLeaderboard response:", JSON.stringify(dryrunResponse, null, 2));
       const data = JSON.parse(dryrunResponse.Messages[0]?.Data || "{}");
@@ -63,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }));
 
         if (entries.length === 0) {
-          leaderboardBody.innerHTML = '<tr><td colspan="4" class="leaderboard-error">No leaderboard data available</td></tr>';
+          leaderboardBody.innerHTML = '<tr><td colspan="4">No leaderboard data</td></tr>';
           showResponse("Leaderboard empty", "error");
           return;
         }
@@ -77,12 +74,12 @@ document.addEventListener("DOMContentLoaded", () => {
           </tr>
         `).join("");
       } else {
-        leaderboardBody.innerHTML = '<tr><td colspan="4" class="leaderboard-error">Error fetching leaderboard</td></tr>';
+        leaderboardBody.innerHTML = '<tr><td colspan="4">Error fetching leaderboard</td></tr>';
         showResponse(`Error fetching leaderboard: ${data.message || "Unexpected response"}`, "error");
       }
     } catch (error) {
       console.error("Dryrun GetLeaderboard failed:", error);
-      leaderboardBody.innerHTML = '<tr><td colspan="4" class="leaderboard-error">Error fetching leaderboard</td></tr>';
+      leaderboardBody.innerHTML = '<tr><td colspan="4">Error fetching leaderboard</td></tr>';
       showResponse(`Error fetching leaderboard: ${error.message}`, "error");
     }
   }
@@ -105,7 +102,6 @@ document.addEventListener("DOMContentLoaded", () => {
         currentMatchId = data.match_id;
         matchIdDisplay.textContent = data.match_id || "None";
         roomCodeDisplay.textContent = data.room_code || "None";
-        stateDisplay.textContent = data.state || "None";
         wagerDisplay.textContent = data.wager || "0";
         turnDisplay.textContent = data.turn ? (data.turn.length > 10 ? `${data.turn.slice(0, 6)}...${data.turn.slice(-4)}` : data.turn) : "None";
 
@@ -136,7 +132,6 @@ document.addEventListener("DOMContentLoaded", () => {
       showResponse(`Error fetching match state: ${error.message}`, "error");
       matchIdDisplay.textContent = "None";
       roomCodeDisplay.textContent = "None";
-      stateDisplay.textContent = "None";
       wagerDisplay.textContent = "0";
       turnDisplay.textContent = "None";
       yourCardsDisplay.textContent = "None";
@@ -155,11 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      await window.arweaveWallet.connect([
-        "ACCESS_ADDRESS",
-        "SIGNATURE",
-        "SIGN_TRANSACTION"
-      ]);
+      await window.arweaveWallet.connect(["ACCESS_ADDRESS", "SIGNATURE", "SIGN_TRANSACTION"]);
       walletAddress = await window.arweaveWallet.getActiveAddress();
 
       if (typeof window.createDataItemSigner !== "function") {
@@ -167,10 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       statusText.textContent = `Connected: ${walletAddress.slice(0, 8)}...`;
-      connectButton.classList.add("hidden");
-      disconnectButton.classList.remove("hidden");
-      connectSection.classList.add("hidden");
-      matchOptions.classList.remove("hidden");
+      showView(matchOptionsView);
       showResponse("Wallet connected successfully!", "success");
 
       const signer = window.createDataItemSigner(window.arweaveWallet);
@@ -200,15 +188,10 @@ document.addEventListener("DOMContentLoaded", () => {
       walletAddress = null;
       currentMatchId = null;
       statusText.textContent = "Not connected";
-      connectButton.classList.remove("hidden");
-      disconnectButton.classList.add("hidden");
-      connectSection.classList.remove("hidden");
-      matchOptions.classList.add("hidden");
-      gameSections.classList.add("hidden");
+      showView(walletView);
       showResponse("Wallet disconnected successfully!", "success");
       matchIdDisplay.textContent = "None";
       roomCodeDisplay.textContent = "None";
-      stateDisplay.textContent = "None";
       wagerDisplay.textContent = "0";
       turnDisplay.textContent = "None";
       yourCardsDisplay.textContent = "None";
@@ -254,7 +237,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       console.log("Dryrun CoordinateRoom (create) response:", JSON.stringify(dryrunResponse, null, 2));
 
-      // Find the CoordinateRoomResponse message
       const responseMessage = dryrunResponse.Messages.find(msg => msg.Tags.some(tag => tag.name === "Action" && tag.value === "CoordinateRoomResponse"));
       if (!responseMessage) {
         throw new Error("CoordinateRoomResponse not found in messages");
@@ -280,9 +262,8 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Message CoordinateRoom (create) response:", JSON.stringify(messageResponse, null, 2));
         showResponse(`Room created! Code: ${data.room_code}, Tokens: ${data.tokens_remaining}, Match ID: ${data.match_id}`, "success");
         wagerInput.value = "";
-        matchOptions.classList.add("hidden");
-        gameSections.classList.remove("hidden");
         fetchMatchState();
+        showView(matchView);
       } else {
         showResponse(`Error creating room: ${data.message}`, "error");
       }
@@ -318,7 +299,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       console.log("Dryrun CoordinateRoom (join) response:", JSON.stringify(dryrunResponse, null, 2));
 
-      // Find the CoordinateRoomResponse message
       const responseMessage = dryrunResponse.Messages.find(msg => msg.Tags.some(tag => tag.name === "Action" && tag.value === "CoordinateRoomResponse"));
       if (!responseMessage) {
         throw new Error("CoordinateRoomResponse not found in messages");
@@ -344,9 +324,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         console.log("Message CoordinateRoom (join) response:", JSON.stringify(messageResponse, null, 2));
         showResponse(`Match started! Your turn: ${shortTurn}, Match ID: ${data.match_id}`, "success");
-        matchOptions.classList.add("hidden");
-        gameSections.classList.remove("hidden");
         fetchMatchState();
+        showView(matchView);
       } else {
         showResponse(`Error joining match: ${data.message || "Invalid response format"}`, "error");
       }
@@ -369,6 +348,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!cardIdx || !moveType || !targetIdx || !roomCode) {
       showResponse("Please select card, move type, target, and ensure room code is set", "error");
+      return;
+    }
+
+    if (!["1", "2", "3", "4"].includes(cardIdx) || !["1", "2", "3", "4"].includes(targetIdx)) {
+      showResponse("Invalid card or target index (must be 1-4)", "error");
+      return;
+    }
+
+    if (!["Normal", "Special"].includes(moveType)) {
+      showResponse("Invalid move type (must be Normal or Special)", "error");
       return;
     }
 
